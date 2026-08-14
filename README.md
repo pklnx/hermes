@@ -60,7 +60,8 @@ both together.
 Dark, reduced, terminal-flavoured: near-black `#08080a` ground, bone-white `#d9d4c8` text,
 a single signal colour `#ff4b33` for the prompt, the ASCII wordmark and link hovers. The
 prompt line carries a blinking block cursor (`@keyframes hermes-blink`); the fact blocks
-sit behind a hairline rule in `#1c1c20`.
+sit behind a hairline rule in `#1c1c20`. The cursor is the only motion on the page and
+stops under `prefers-reduced-motion: reduce`, staying visible where it is.
 
 Set in **JetBrains Mono** (see [Credits](#credits)), self-hosted, one variable file for
 every weight. Code ligatures are switched off page-wide — this is a terminal transcript,
@@ -69,6 +70,13 @@ not source code, and the ASCII wordmark has no business being re-shaped by them.
 Layout and colours live in inline `style` attributes rather than in classes — the page is
 one screen and one file, and the CSP allows inline styles for exactly that reason. Keep new
 values consistent with the ones already in use instead of introducing a second palette.
+
+The `<style>` block holds the handful of rules an attribute cannot express: `@font-face`,
+`@keyframes`, `a:hover`, `min-width: 0` on the three grid rows, and two media queries — one
+for reduced motion, one that drops the header's letter-spaced caps below 40 rem, where they
+no longer fit beside the wordmark. The classes `.cursor` and `.eyebrow` exist only so those
+queries have something to select. Layout regressions here are horizontal ones: check that
+the page does not scroll sideways at 320 px.
 
 ## Deployment
 
