@@ -1,0 +1,25 @@
+Copyright (c) 2026 Patrick Klein. All rights reserved.
+
+This repository and all of its contents — including but not limited to the
+source code, HTML, CSS, text, images, photographs, and visual design — are
+proprietary and confidential.
+
+No part of this repository may be copied, reproduced, modified, published,
+distributed, sublicensed, sold, publicly displayed, or otherwise used, in
+whole or in part, in any form or by any means, without the prior express
+written permission of the copyright holder.
+
+No license or other rights are granted, whether by implication, estoppel, or
+otherwise. All rights not expressly granted in writing are reserved.
+
+The software and content are provided "as is", without warranty of any kind.
+
+--------------------------------------------------------------------------------
+
+EXCEPTION — THIRD-PARTY FONT
+
+The font files under fonts/ are not part of the above. The JetBrains Mono
+typeface is the work of JetBrains and is licensed under the SIL Open Font
+License, Version 1.1 — see fonts/OFL.txt for the full text and fonts/README.md
+for provenance. It remains under its own terms; nothing in this file restricts
+the rights that license grants.

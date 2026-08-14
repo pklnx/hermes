@@ -1,0 +1,22 @@
+# The weekly rebuild in .github/workflows/docker.yml is what keeps nginx itself
+# current: the Dockerfile tracks the unpinned nginx:alpine tag, so a rebuild
+# picks up patches and new minors alike. There is deliberately no "docker"
+# ecosystem entry here — with no version in the tag Dependabot would have
+# nothing to bump. Add one if the base image is ever pinned to a minor.
+#
+# The workflow's own actions (checkout, qemu, buildx, login, metadata,
+# build-push) age all the same, and a deprecated major eventually stops running
+# without warning. These PRs have a second job: GitHub disables scheduled
+# workflows after 60 days without repository activity, and on a page that goes
+# months without a content change these commits are what keep the Monday
+# rebuild running.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    commit-message:
+      prefix: "Update"
+    labels:
+      - "dependencies"
