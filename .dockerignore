@@ -1,0 +1,17 @@
+# Allow-list: exclude everything, then re-include what the image needs.
+# Keeping this an allow-list means repo housekeeping files (README, LICENSE,
+# workflows, git metadata) can never leak into the public web root, and a newly
+# added file cannot sneak into the image by accident.
+*
+
+# The site
+!index.html
+
+# The self-hosted typeface — the .woff2 only. OFL.txt, subset.sh and
+# check-coverage.py belong to the repository, not to the web root; the CI smoke
+# test fetches the font over HTTP, so an image that lost it fails the build
+# rather than falling back to a system face in silence.
+!fonts/*.woff2
+
+# Build inputs that are not published
+!docker/

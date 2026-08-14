@@ -1,0 +1,215 @@
+name: Build and publish container image
+
+# The container image is the only way this site ships. Every push to main
+# publishes a new image to the GitHub Container Registry, which the server then
+# pulls: ghcr.io/pklnx/hermes:latest
+#
+# Pull requests build the image and run the smoke test as well but do not push
+# it — since there is no second deploy path, a Dockerfile that no longer builds
+# has to be caught before it reaches main.
+#
+# The weekly schedule is what keeps nginx and the Alpine packages current. The
+# image is pure COPY on top of nginx:alpine, so rebuilding an unchanged commit
+# picks up whatever that tag points at today — including a new minor, since the
+# tag is deliberately unpinned. Without it a page that nobody edits would keep
+# serving the nginx of its last content edit. The smoke test below is what makes
+# that safe: a base image that broke something never reaches the registry.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  schedule:
+    # Mondays 04:30 UTC — half an hour after pklnx/root, so the two weekly
+    # rebuilds do not queue up against each other. GitHub disables scheduled
+    # workflows after 60 days without repository activity; the Dependabot PRs
+    # are what keep this one alive on a page that goes months without a content
+    # change. If those ever dry up too, a manual run via workflow_dispatch
+    # resets the clock.
+    - cron: '30 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  # The event name is part of the group on purpose: schedule and push both run
+  # on refs/heads/main, so without it a Monday rebuild would cancel a merge that
+  # happens to be building at the same moment.
+  group: docker-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # The zero-external-requests rule is what lets this page run without a
+      # consent banner, and it is the easiest thing to break by accident — a
+      # web font pasted back in looks harmless in a diff. The CSP would block
+      # it in the browser, but silently; this fails the build instead.
+      # Anchor links (<a href="https://pklnx.space">) are navigation, not
+      # subresources, and stay allowed; the @font-face url() is relative and
+      # therefore does not match either.
+      - name: No external subresources in index.html
+        env:
+          # <script>, @import, a stylesheet/preconnect/dns-prefetch/preload
+          # link, an absolute src=, or an absolute url() in CSS.
+          PATTERN: '<script|@import|rel="?(stylesheet|preconnect|dns-prefetch|preload)|src="?https?:|url\(.{0,2}https?:'
+        run: |
+          set -euo pipefail
+          if grep -Eiq "$PATTERN" index.html; then
+            echo "index.html references an external subresource:"
+            grep -Ein "$PATTERN" index.html
+            echo "The page must load nothing but itself — vendor the asset into fonts/ or the page"
+            echo "itself and widen the CSP in docker/nginx.conf in the same commit."
+            exit 1
+          fi
+          echo "no external subresources"
+
+      # The typeface is a subset (fonts/README.md). A character it does not
+      # carry renders in the fallback monospace face — visible, but nothing
+      # warns about it. This turns that into a failed build.
+      - name: Font covers every character on the page
+        run: |
+          python3 -m pip install --quiet fonttools brotli
+          python3 fonts/check-coverage.py
+
+      # The image is pure COPY, so arm64 (typical for small VPS instances)
+      # costs almost nothing to build alongside amd64. PRs build amd64 only
+      # and therefore need no emulation.
+      - name: Set up QEMU
+        if: github.event_name != 'pull_request'
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # metadata-action stamps org.opencontainers.image.created with the current
+      # build time. That changes the image config, and with it the manifest
+      # digest, on every single rebuild — so an idle weekly run would look like
+      # a new image to an update watcher (DIUN and friends) and produce a
+      # notification about nothing. Pinning the label to the commit date makes
+      # an unchanged rebuild bit-identical, and a notification then means the
+      # base image actually moved.
+      - name: Read the commit date
+        id: commit
+        run: echo "date=$(git log -1 --format=%cI)" >> "$GITHUB_OUTPUT"
+
+      - name: Derive tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          # sha- tags are not unique across rebuilds: a scheduled run builds the
+          # same commit again and overwrites its sha- tag with a newer nginx.
+          # The date tag is the stable anchor to roll back to.
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value={{date 'YYYYMMDD'}},enable={{is_default_branch}}
+            type=ref,event=tag
+            type=sha,format=short
+          labels: |
+            org.opencontainers.image.created=${{ steps.commit.outputs.date }}
+
+      # Build locally and actually run it first. An image that never ran is
+      # unproven — and a broken one should not reach the registry at all.
+      - name: Build test image (amd64, loadable)
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: hermes:test
+          # Re-resolve nginx:alpine here too, not just in the pushing build
+          # below — otherwise the weekly run would smoke-test a cached base and
+          # publish a freshly pulled one, which is the wrong way round.
+          pull: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Start the container and probe it
+        run: |
+          set -euo pipefail
+          # Same hardening the compose file promises, so CI proves it holds.
+          docker run -d --name smoke \
+            --read-only --tmpfs /tmp \
+            -p 127.0.0.1:8080:8080 hermes:test
+
+          echo "::group::Wait for healthy"
+          for _ in $(seq 60); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' smoke)
+            [ "$status" = healthy ] && break
+            [ "$status" = unhealthy ] && { docker logs smoke; exit 1; }
+            sleep 1
+          done
+          test "$(docker inspect -f '{{.State.Health.Status}}' smoke)" = healthy \
+            || { echo "container never became healthy"; docker logs smoke; exit 1; }
+          echo "::endgroup::"
+
+          # Running as non-root? Otherwise redirecting the paths to /tmp is pointless.
+          test "$(docker exec smoke id -un)" = nginx
+          echo "user: $(docker exec smoke id -un) (uid $(docker exec smoke id -u))"
+
+          # Is what we serve byte-for-byte the file in the repo?
+          curl -fsS http://127.0.0.1:8080/ -o served.html
+          diff -q served.html index.html
+
+          # The liveness endpoint the HEALTHCHECK probes.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/healthz)" = 200
+
+          # The CSP has to arrive — it is what enforces the no-external-requests rule.
+          curl -fsS -D headers.txt -o /dev/null http://127.0.0.1:8080/
+          grep -qi '^content-security-policy:.*default-src .none.' headers.txt
+          grep -qi '^x-content-type-options: nosniff' headers.txt
+          # font-src 'self' is what lets the vendored typeface load at all. If it
+          # ever disappears from the CSP the page silently falls back to a system
+          # face, which is exactly the state this repo moved away from.
+          grep -qi "^content-security-policy:.*font-src .self." headers.txt
+
+          # The typeface has to be in the image and reachable. .dockerignore is
+          # an allow-list, so a renamed font file would otherwise leave the
+          # image without one and nobody would notice from the HTML alone.
+          font=$(grep -o "/fonts/[A-Za-z0-9.-]*\.woff2" index.html | head -1)
+          test -n "$font"
+          echo "font: $font"
+          curl -fsS -D font-headers.txt "http://127.0.0.1:8080$font" -o served.woff2
+          diff -q served.woff2 ".$font"
+          grep -qi '^content-type: font/woff2' font-headers.txt
+          grep -qi '^cache-control:.*max-age=31536000' font-headers.txt
+
+          # There is exactly one page; anything else is a typo.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/nope)" = 404
+          # …including anything else under /fonts/, which is a prefix location.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/fonts/)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/fonts/OFL.txt)" = 404
+
+          echo "smoke test passed"
+          docker rm -f smoke
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          # Only main/tags need arm64; on a PR one architecture is enough to
+          # prove the image still builds.
+          platforms: ${{ github.event_name == 'pull_request' && 'linux/amd64' || 'linux/amd64,linux/arm64' }}
+          # Re-resolve nginx:alpine on every build — without this the whole
+          # point of the weekly schedule is lost to a cached base layer.
+          pull: true
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

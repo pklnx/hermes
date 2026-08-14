@@ -1,0 +1,45 @@
+# Runs the website in a single container.
+#
+#   docker compose up -d --build
+#   curl -I http://127.0.0.1:8081/
+#
+# The container speaks plain HTTP on 8080 and is bound to localhost only: put a
+# TLS-terminating reverse proxy (Caddy, Traefik, nginx, …) in front of it and
+# forward hermes.pklnx.space to 127.0.0.1:8081.
+#
+# Host port 8081, not 8080: the pklnx.space landing page (pklnx/root) uses 8080
+# and both sites may well end up on the same host. Inside the container the port
+# stays 8080 in both images — only the host side differs.
+
+services:
+  web:
+    build: .
+    # Or pull the image built by .github/workflows/docker.yml instead of
+    # building locally:
+    # image: ghcr.io/pklnx/hermes:latest
+    image: hermes:latest
+    container_name: hermes
+    restart: unless-stopped
+
+    # Reachable on the loopback interface only — the reverse proxy on the host
+    # forwards here. Without the 127.0.0.1 binding the container would sit on
+    # the public interface and TLS termination could be bypassed.
+    ports:
+      - "127.0.0.1:8081:8080"
+
+    # Hardening: nothing in this container ever needs to write to disk or to
+    # gain privileges. nginx writes its pid and temp files to /tmp (see
+    # docker/nginx.conf), which lives in RAM here instead of in the image.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
