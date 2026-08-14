@@ -75,8 +75,27 @@ palette, and keep dimmed text at the contrast level it currently has (roughly
 6:1 against the ground, well above the 4.5:1 WCAG asks for) — a too-dark grey is
 the easy mistake in a layout like this.
 
+The `<style>` block carries only what an inline attribute cannot express:
+`@font-face`, `@keyframes`, `a:hover`, the `header, main, footer { min-width: 0 }`
+rule and two media queries. Those queries need something to select, which is why
+`.cursor` and `.eyebrow` exist — they are hooks, not the start of a class-based
+stylesheet. Colours and layout stay in the `style` attributes; keep new rules out
+of the block unless a media query or pseudo-class genuinely forces them in.
+
 The prompt line's blinking cursor is a CSS animation (`@keyframes
-hermes-blink`), the one piece of motion on the page.
+hermes-blink`), the one piece of motion on the page. Under
+`prefers-reduced-motion: reduce` it stops — the `.cursor` class exists precisely
+so that the animation can be switched off from the `<style>` block, which an
+inline `animation:` would have overridden. It stays visible at full opacity when
+stopped; it is part of the prompt, not decoration.
+
+Two auto-minimum traps are already defused, and both bite again if the rule is
+removed: grid items default to `min-width: auto` and refuse to shrink below their
+content (the header did this at 320 px), and an `fr` track takes `min-content` as
+its automatic minimum — hence `minmax(0, 1fr)` plus `overflow-wrap: anywhere` on
+the `whois` block, whose unbreakable `hermes.pklnx.space` widened the page the
+same way. The narrow-viewport check in "Local preview" is what catches a
+regression here.
 
 ## Typeface
 
@@ -300,6 +319,13 @@ image.
 No test suite. Take headless screenshots (Chromium is available) and check
 desktop and mobile widths — the ASCII wordmark uses `clamp()` and
 `overflow-x: auto`, so a narrow viewport is the case worth looking at.
+
+Assert `document.scrollingElement.scrollWidth === clientWidth` at **320 px**, not
+just by eye: both auto-minimum traps above showed up there and nowhere wider.
+When it fails, walk the DOM for elements whose `getBoundingClientRect().right`
+exceeds the viewport — that names the culprit in one step. Worth a second run
+with `prefers-reduced-motion: reduce` emulated, where the cursor's computed
+`animationName` has to be `none`.
 
 **Serve the page, don't `file://` it.** The `@font-face` url is root-absolute
 (`/fonts/…`), so opening `index.html` from disk loads it without the typeface
