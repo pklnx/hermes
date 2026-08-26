@@ -134,8 +134,19 @@ The page is a terminal transcript:
 | `dienst`    | `e-mail (smtp · imap)`                            |
 | `herkunft`  | `Ἑρμῆς — bote, wegbereiter, übermittler`           |
 | `betreiber` | `pklnx.space`                                     |
+| `name`      | `Patrick Klein` — person responsible for mail dispatch |
+| `anschrift` | postal address (deliverable, per Telekom FAQ 4.1)  |
+| `e-mail`    | `postmaster@pklnx.space`, as `mailto:` link         |
+| `telefon`   | contact phone number, as `tel:` link                |
 | motd        | „was ihm anvertraut wird, kommt an." — access for existing accounts only |
 | Footer      | `hermes.pklnx.space` · link back to `pklnx.space` |
+
+The `whois -a hermes` block (`name`/`anschrift`/`e-mail`/`telefon`) exists so the PTR domain
+of the mail server's outbound IP resolves to a page showing the responsible person's direct
+contact details on load, not just a link elsewhere — some large mail providers require this
+before lifting a reputation block on a sender IP. It reuses the `whois hermes` block's grid
+pattern and colour conventions; see "Content & legal rules" below for why this does not turn
+the site into a business telemedium requiring an Impressum.
 
 The description appears **twice** in the source: as the intro paragraph and in
 `<meta name="description">`. Change both.
@@ -173,6 +184,19 @@ Impressum per § 5 DDG and a privacy policy become necessary in the same change.
 Don't add such content silently. Note that offering mailboxes to third parties
 would make this a service — the current copy deliberately says access is for
 existing accounts only.
+
+**The `whois -a hermes` contact block (name, postal address, e-mail, phone) is
+not such content.** It exists solely because Deutsche Telekom's postmaster
+team (and other large providers) require the mail server's PTR domain to show
+the responsible person's direct contact details before lifting an IP
+reputation block — an administrative/abuse contact, the same category as a
+RIPE `abuse-mailbox:` field, not a service offering. It doesn't collect
+anything from visitors, so it needs no privacy notice either: a
+Datenschutzerklärung is about informing visitors what the site does with
+*their* data, and this page still does nothing with visitor data (see
+"Hard rule: zero external requests" and the IP-free access log). If this
+block ever grows into something that solicits or processes visitor data,
+revisit this assumption.
 
 ## Hosting & deployment
 
