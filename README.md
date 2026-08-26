@@ -40,7 +40,8 @@ favicon SVG. That is an identifier, not a URL that gets fetched.
 ## Content
 
 The page is a terminal transcript in German: an ASCII wordmark, a one-line explanation of
-the name, a `whois hermes` block of host facts, and a `cat /etc/motd` line.
+the name, a `whois hermes` block of host facts, a `whois -a hermes` block naming the person
+responsible for mail dispatch, and a `cat /etc/motd` line.
 
 | Element     | Text                                             |
 |-------------|--------------------------------------------------|
@@ -49,7 +50,16 @@ the name, a `whois hermes` block of host facts, and a `cat /etc/motd` line.
 | `dienst`    | `e-mail (smtp · imap)`                           |
 | `herkunft`  | `Ἑρμῆς — bote, wegbereiter, übermittler`          |
 | `betreiber` | `pklnx.space`                                    |
+| `name`      | responsible person for mail dispatch              |
+| `anschrift` | postal address                                    |
+| `e-mail`    | contact address (`mailto:` link)                  |
+| `telefon`   | contact phone (`tel:` link)                       |
 | Footer      | `hermes.pklnx.space` · link back to `pklnx.space`|
+
+The `whois -a hermes` block exists so that the PTR domain of the mail server's outbound IP
+resolves to a page that shows the responsible person's direct contact details on load — not
+just a link elsewhere. Large mail providers' postmaster teams check for this before lifting a
+reputation block on a new sender IP.
 
 The page copy is German (`<html lang="de">`); the repository's docs, comments and commit
 messages are English. `<meta name="description">` repeats the one-line description — change
