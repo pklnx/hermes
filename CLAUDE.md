@@ -269,7 +269,7 @@ curl -I http://127.0.0.1:8081/
 
 ### Staying current
 
-The site's own content barely changes; the software in the container does. Three
+The site's own content barely changes; the software in the container does. Four
 pieces keep that from rotting, and they only work together:
 
 - **`schedule: '30 4 * * 1'`** in `.github/workflows/docker.yml` rebuilds the
@@ -282,9 +282,12 @@ pieces keep that from rotting, and they only work together:
   would smoke-test a cached base and publish a freshly pulled one.
 - **`.github/dependabot.yml`** keeps the workflow's own actions from ageing out.
   There is no `docker` entry on purpose — an unpinned tag has nothing to bump.
-  Its side effect matters too: GitHub disables scheduled workflows after 60 days
-  without repository activity, and those PRs are what keep the Monday run alive.
-  If they ever dry up, one `workflow_dispatch` run resets the clock.
+- **The `keepalive` job** in `docker.yml` stops GitHub from disabling the
+  schedule after 60 days without a commit. Unmerged Dependabot PRs do not
+  count, so it re-enables the workflow through the API on every scheduled or
+  manual run, which resets that clock. It needs `actions: write`, granted to
+  that job only. If the schedule ever is disabled anyway,
+  *Actions → the workflow → Enable workflow* revives it.
 
 Two consequences worth remembering:
 

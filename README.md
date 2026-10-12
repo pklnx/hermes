@@ -141,9 +141,9 @@ base image that broke something never reaches the registry. `pull: true` on the 
 is what makes this work at all; without it Buildx would reuse the cached base layer.
 
 `.github/dependabot.yml` keeps the workflow's own actions from ageing out. It has no
-`docker` entry on purpose — an unpinned tag has nothing to bump. Those PRs also keep the
-schedule alive: GitHub disables scheduled workflows after 60 days without repository
-activity. A manual run (`workflow_dispatch`) resets that clock if it ever comes to it.
+`docker` entry on purpose — an unpinned tag has nothing to bump. GitHub disables scheduled
+workflows after 60 days without a commit; the `keepalive` job in the same workflow
+re-enables it through the API on every scheduled or manual run, which resets that clock.
 
 Two things to know when operating this:
 
