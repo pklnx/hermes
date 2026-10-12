@@ -23,10 +23,9 @@ on:
   schedule:
     # Mondays 04:30 UTC — half an hour after pklnx/root, so the two weekly
     # rebuilds do not queue up against each other. GitHub disables scheduled
-    # workflows after 60 days without repository activity; the Dependabot PRs
-    # are what keep this one alive on a page that goes months without a content
-    # change. If those ever dry up too, a manual run via workflow_dispatch
-    # resets the clock.
+    # workflows after 60 days without a commit; the keepalive job below
+    # re-enables this one on every scheduled or manual run, so it does not
+    # depend on anyone committing.
     - cron: '30 4 * * 1'
   workflow_dispatch:
 
@@ -42,6 +41,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # GitHub disables scheduled workflows in a public repository after 60 days
+  # without a commit, and this site can go far longer than that without one.
+  # Re-enabling the workflow through the API resets that clock, so every
+  # scheduled run keeps the next one alive: no dummy commits, no third-party
+  # action. It is a job of its own on purpose, so a failing build cannot let the
+  # schedule lapse as well, and so actions: write is granted to it alone.
+  keepalive:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Re-enable this workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: gh api --method PUT "repos/$REPO/actions/workflows/docker.yml/enable"
+
   build:
     runs-on: ubuntu-latest
     steps:
