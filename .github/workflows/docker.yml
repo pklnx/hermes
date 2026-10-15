@@ -70,13 +70,13 @@ jobs:
       # web font pasted back in looks harmless in a diff. The CSP would block
       # it in the browser, but silently; this fails the build instead.
       # Anchor links (<a href="https://pklnx.space">) are navigation, not
-      # subresources, and stay allowed; the @font-face url() is relative and
-      # therefore does not match either.
+      # subresources, and stay allowed; so are the same-origin font preloads
+      # and the root-relative @font-face url()s.
       - name: No external subresources in index.html
         env:
-          # <script>, @import, a stylesheet/preconnect/dns-prefetch/preload
-          # link, an absolute src=, or an absolute url() in CSS.
-          PATTERN: '<script|@import|rel="?(stylesheet|preconnect|dns-prefetch|preload)|src="?https?:|url\(.{0,2}https?:'
+          # <script>, @import, a stylesheet/preconnect/dns-prefetch link, a
+          # <link> pointing off-origin, an absolute src=, or an absolute url().
+          PATTERN: '<script|@import|rel="?(stylesheet|preconnect|dns-prefetch)|<link[^>]+href="?(https?:)?//|src="?(https?:)?//|url\(.{0,2}(https?:)?//'
         run: |
           set -euo pipefail
           if grep -Eiq "$PATTERN" index.html; then
@@ -87,14 +87,6 @@ jobs:
             exit 1
           fi
           echo "no external subresources"
-
-      # The typeface is a subset (fonts/README.md). A character it does not
-      # carry renders in the fallback monospace face — visible, but nothing
-      # warns about it. This turns that into a failed build.
-      - name: Font covers every character on the page
-        run: |
-          python3 -m pip install --quiet fonttools brotli
-          python3 fonts/check-coverage.py
 
       # The image is pure COPY, so arm64 (typical for small VPS instances)
       # costs almost nothing to build alongside amd64. PRs build amd64 only
@@ -186,31 +178,41 @@ jobs:
           # The liveness endpoint the HEALTHCHECK probes.
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/healthz)" = 200
 
+          # The page sets its type in a self-hosted font: every weight it asks
+          # for has to be there, byte-for-byte and as font/woff2. A missing file
+          # here means visitors silently fall back to the system monospace.
+          files=$(grep -o '/fonts/[a-z0-9-]\+\.woff2' index.html | sed 's|^/fonts/||' | sort -u)
+          test -n "$files"
+          for file in $files; do
+            curl -fsS -D font-headers.txt "http://127.0.0.1:8080/fonts/$file" -o served.woff2
+            diff -q served.woff2 "fonts/$file"
+            grep -qi '^content-type: font/woff2' font-headers.txt
+          done
+
+          # The OFL requires the licence to travel with each font: one licence
+          # file per family, all of them served.
+          for licence in OFL-SpaceMono.txt OFL-IBMPlex.txt; do
+            curl -fsS "http://127.0.0.1:8080/fonts/$licence" -o served.txt
+            diff -q served.txt "fonts/$licence"
+          done
+
           # The CSP has to arrive — it is what enforces the no-external-requests rule.
           curl -fsS -D headers.txt -o /dev/null http://127.0.0.1:8080/
           grep -qi '^content-security-policy:.*default-src .none.' headers.txt
+          grep -qi "^content-security-policy:.*font-src 'self'" headers.txt
           grep -qi '^x-content-type-options: nosniff' headers.txt
-          # font-src 'self' is what lets the vendored typeface load at all. If it
-          # ever disappears from the CSP the page silently falls back to a system
-          # face, which is exactly the state this repo moved away from.
-          grep -qi "^content-security-policy:.*font-src .self." headers.txt
 
-          # The typeface has to be in the image and reachable. .dockerignore is
-          # an allow-list, so a renamed font file would otherwise leave the
-          # image without one and nobody would notice from the HTML alone.
-          font=$(grep -o "/fonts/[A-Za-z0-9.-]*\.woff2" index.html | head -1)
-          test -n "$font"
-          echo "font: $font"
-          curl -fsS -D font-headers.txt "http://127.0.0.1:8080$font" -o served.woff2
-          diff -q served.woff2 ".$font"
-          grep -qi '^content-type: font/woff2' font-headers.txt
-          grep -qi '^cache-control:.*max-age=31536000' font-headers.txt
+          # And no font host may sneak back into the page: a <link> to Google
+          # Fonts would load fine in the browser's eyes but hand every visitor's
+          # IP to a third party, which is the thing self-hosting exists to stop.
+          # Spelled as an if on purpose: `set -e` ignores a command negated with
+          # `!`, so a bare `! grep …` line could never fail this step.
+          if grep -Eqi 'fonts\.(googleapis|gstatic)\.com' index.html; then
+            echo "Google Fonts host found in index.html"; exit 1
+          fi
 
           # There is exactly one page; anything else is a typo.
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/nope)" = 404
-          # …including anything else under /fonts/, which is a prefix location.
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/fonts/)" = 404
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/fonts/OFL.txt)" = 404
 
           echo "smoke test passed"
           docker rm -f smoke

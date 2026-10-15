@@ -7,11 +7,10 @@
 # The site
 !index.html
 
-# The self-hosted typeface — the .woff2 only. OFL.txt, subset.sh and
-# check-coverage.py belong to the repository, not to the web root; the CI smoke
-# test fetches the font over HTTP, so an image that lost it fails the build
-# rather than falling back to a system face in silence.
-!fonts/*.woff2
+# The self-hosted webfonts and the licence texts that have to ship with them.
+# Its README documents where the files come from and stays out of the image.
+!fonts/
+fonts/README.md
 
 # Build inputs that are not published
 !docker/

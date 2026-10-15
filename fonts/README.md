@@ -1,66 +1,88 @@
-# Fonts
+# Self-hosted webfonts
 
-## JetBrains Mono
+The page sets its type in **Space Mono** and **IBM Plex Sans** and serves both
+from this origin. Loading them from `fonts.googleapis.com` would send every
+visitor's IP address to a third party and break the site's zero-external-requests
+rule — and with it the consent-free operation the whole setup rests on (see
+`CLAUDE.md`).
 
-The page is set in **[JetBrains Mono](https://www.jetbrains.com/lp/mono/)**, designed by
-**JetBrains**. Thank you — it is what makes the terminal look on this page work.
+## Credit & licence
 
-The typeface is licensed under the **SIL Open Font License 1.1** (see [`OFL.txt`](OFL.txt))
-and is free for commercial and non-commercial use. JetBrains does not require attribution;
-this credit is here because the work deserves it.
+> Space Mono — © 2016 The Space Mono Project Authors
+> <https://github.com/googlefonts/spacemono>
+> Licensed under the SIL Open Font License, Version 1.1.
 
-| | |
-|---|---|
-| Upstream | <https://github.com/JetBrains/JetBrainsMono> |
-| Version | 2.304 |
-| Source file | `fonts/variable/JetBrainsMono[wght].ttf` (variable, weight axis 100–800) |
-| Archive sha256 | `6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf` |
-| Shipped as | `jetbrains-mono.<sha256[:8]>.woff2`, ~57 kB |
+> IBM Plex Sans — © 2017 IBM Corp., with Reserved Font Name "Plex"
+> <https://github.com/IBM/plex>
+> Licensed under the SIL Open Font License, Version 1.1.
 
-### Why it is vendored at all
+Each family's licence text is copied unchanged from its upstream release and
+ships into the container image next to the font files: the OFL requires the
+licence to travel with the font, so it has to be part of what the server hands
+out, not just of the repository. The attribution is repeated in the
+`@font-face` comments in `index.html`.
 
-The page must issue **zero external requests** — that is what lets it run without a consent
-banner, and a `fonts.googleapis.com` request would hand every visitor's IP address to
-Google. The original draft of this page did exactly that. Self-hosting is the only way to
-keep the typeface and the rule at the same time; the CSP in `docker/nginx.conf` therefore
-allows `font-src 'self'` and nothing else.
+The two licences differ in one point that decides how each file is produced:
 
-### Why it is subsetted
+- **Space Mono** carries no Reserved Font Name, so subsetting it while keeping
+  the family name is permitted.
+- **IBM Plex** reserves the name "Plex". A file we modified ourselves (and a
+  subset is a modification) could not be called IBM Plex Sans. The page
+  therefore ships IBM's own pre-split Latin1 file **unmodified**.
 
-The full variable font is ~300 kB against an HTML file of ~5 kB. The subset carries Latin-1,
-Latin Extended-A, monotonic Greek, General Punctuation, the euro sign, arrows and the
-replacement character — ~57 kB, one file, every weight from 100 to 800.
+## What is in here
 
-**Two characters of `Ἑρμῆς` are not in the font at all.** JetBrains Mono covers monotonic
-Greek but not the polytonic Extended Greek block, so `Ἑ` (U+1F19) and `ῆ` (U+1FC6) render in
-the platform monospace face. That is not a consequence of the subset — the full font does
-not have them either, and the Google Fonts version of this page rendered them no better.
-`check-coverage.py` knows about both and passes them.
+| File                      | Face                    | Used for                         |
+|---------------------------|-------------------------|----------------------------------|
+| `space-mono-400.woff2`    | Space Mono Regular      | eyebrow, whois labels and values, footer |
+| `space-mono-700.woff2`    | Space Mono Bold         | the `$` prompts                  |
+| `ibm-plex-sans-400.woff2` | IBM Plex Sans Regular   | intro line and motd              |
+| `OFL-SpaceMono.txt`       | licence for Space Mono  |                                  |
+| `OFL-IBMPlex.txt`         | licence for IBM Plex    |                                  |
 
-### Regenerating
+The logo is not set in a webfont at all: the mark and the `hermes` wordmark are
+inline SVG, converted from Space Mono Bold once, so they look the same before the
+fonts arrive.
+
+Space Mono comes from the upstream repository at commit
+`329858c2c4dbd3476f972a4ae00624b018cf4b81` (`fonts/ttf/`), subset to Latin:
+~15 KB per weight. IBM Plex Sans is `IBMPlexSans-Regular-Latin1.woff2` from the
+`@ibm/plex-sans` package, version **1.1.0** (`fonts/split/woff2/`), ~21 KB.
+About 50 KB for the page in total.
+
+## Reproducing the files
 
 ```sh
 pip install fonttools brotli
-sh fonts/subset.sh          # downloads, verifies, subsets, prints the new src line
+
+# Space Mono: subset the upstream TTFs to Latin.
+git clone https://github.com/googlefonts/spacemono
+git -C spacemono checkout 329858c2c4dbd3476f972a4ae00624b018cf4b81
+
+RANGES="U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,\
+U+0308,U+0329,U+2000-206F,U+2074,U+20AC,U+2122,U+2190-2193,U+2212,U+2215,U+FEFF,U+FFFD"
+
+for pair in Regular:400 Bold:700; do
+  pyftsubset "spacemono/fonts/ttf/SpaceMono-${pair%%:*}.ttf" \
+    --unicodes="$RANGES" \
+    --layout-features='kern,mark,mkmk,ccmp,locl' \
+    --flavor=woff2 \
+    --output-file="fonts/space-mono-${pair##*:}.woff2"
+done
+cp spacemono/OFL.txt fonts/OFL-SpaceMono.txt
+
+# IBM Plex Sans: IBM's own Latin1 split, copied as is. Do not subset it.
+npm pack @ibm/plex-sans@1.1.0
+mkdir plex && tar xzf ibm-plex-sans-1.1.0.tgz -C plex
+cp plex/package/fonts/split/woff2/IBMPlexSans-Regular-Latin1.woff2 fonts/ibm-plex-sans-400.woff2
+cp plex/package/LICENSE.txt fonts/OFL-IBMPlex.txt
 ```
 
-The filename carries a content hash, so a regenerated subset lands under a new URL and the
-one-year cache in `docker/nginx.conf` can never serve a stale file. The script prints the
-`src:` line for the `@font-face` block in `index.html`; paste it and then run:
+IBM's Latin1 file covers Basic Latin, Latin-1 Supplement, the common
+punctuation (dashes, quotes, ellipsis) and the euro sign. If the prose lines ever
+need a character outside that, use IBM's matching split file (`-Latin2`,
+`-Latin3`, …) with a `unicode-range`, never a subset of our own.
 
-```sh
-python3 fonts/check-coverage.py
-```
-
-which asserts that the file `index.html` points at exists and covers every character on the
-page. CI runs the same check, so a copy edit that introduces an uncovered glyph fails the
-build instead of quietly rendering in the fallback face.
-
-Subsetting happens **by hand and is committed** — the site keeps its "no build step"
-property, and the image build stays a pure `COPY`.
-
-### What ships in the image
-
-Only `*.woff2`. `OFL.txt`, this file and the scripts stay in the repository (`.dockerignore`
-is an allow-list). The OFL's redistribution requirement is met by the license text living
-alongside the font here, in public, in the repository that contains it.
+Updating to a newer upstream release means re-running the block above and
+checking the page at desktop and mobile width; nothing else references the
+versions.

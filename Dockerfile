@@ -25,10 +25,11 @@ COPY docker/nginx.conf /etc/nginx/nginx.conf
 # LICENSE, workflows, git metadata) out of the web root.
 COPY index.html /usr/share/nginx/html/index.html
 
-# The self-hosted typeface, so the page needs no request to fonts.googleapis.com
-# (see fonts/README.md). Only the .woff2 goes in: the license text, the
-# regeneration script and the coverage check stay in the repository.
-COPY fonts/*.woff2 /usr/share/nginx/html/fonts/
+# The webfonts the page sets its type in, served from this origin instead of
+# Google Fonts so no visitor request ever leaves the site. The OFL-*.txt files go along
+# with them because the licence requires it to accompany each font — it has to be
+# in what the server hands out, not just in the repository.
+COPY fonts/ /usr/share/nginx/html/fonts/
 
 # nginx runs unprivileged on 8080 and keeps its pid file and temp paths in /tmp,
 # so the root filesystem can be mounted read-only. No chown is needed: the file
