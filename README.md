@@ -16,45 +16,47 @@ change to this file:
 - CSS stays inline (in `<style>` and in the `style="…"` attributes the layout is built
   from); no `@import`, no `<link rel="stylesheet">`
 - no JavaScript, no `<script>` tags
-- **the typeface is self-hosted, not fetched.** The first draft of this page pulled
-  JetBrains Mono from `fonts.googleapis.com`, which hands every visitor's IP address to
-  Google — precisely what this rule exists to prevent. The font now lives in `fonts/` and
-  is served from this origin; the CSP allows `font-src 'self'` and nothing else. See
-  [`fonts/README.md`](fonts/README.md) for provenance, subsetting and regeneration.
+- **the typefaces are self-hosted, not fetched.** Space Mono and IBM Plex Sans live in
+  `fonts/` and are served from this origin; the CSP allows `font-src 'self'` and nothing
+  else. A `fonts.googleapis.com` link would hand every visitor's IP address to Google —
+  precisely what this rule exists to prevent. See [`fonts/README.md`](fonts/README.md)
+  for provenance and regeneration.
 - graphics only as inline SVG or CSS gradient; the favicon is a `data:` URI so the browser
   never goes looking for `/favicon.ico`
 - no build step, no framework
 
-Loading the page issues exactly **two** requests, both to this origin: the HTML and the
-`woff2`.
+Loading the page issues exactly **four** requests, all to this origin: the HTML and the
+three `woff2` files (preloaded from `<head>`).
 
 CI enforces this: a step in `.github/workflows/docker.yml` fails the build if `index.html`
-gains a `<script>`, an `@import`, a stylesheet/preconnect/preload `<link>`, an
-`src="https://…"`, or an absolute `url()` in CSS. Anchor links
+gains a `<script>`, an `@import`, a stylesheet/preconnect/dns-prefetch `<link>`, a `<link>`
+pointing off-origin, an absolute `src=`, or an absolute `url()` in CSS; the smoke test also
+fails on a Google Fonts host anywhere in the file. Anchor links
 (`<a href="https://pklnx.space">`) are navigation, not subresources, and stay allowed; so
-is the relative `url()` of the local font.
+are the same-origin font preloads and the root-relative `url()`s of the local fonts.
 
 The only `http://` in the source is `http://www.w3.org/2000/svg`, the XML namespace of the
 favicon SVG. That is an identifier, not a URL that gets fetched.
 
 ## Content
 
-The page is a terminal transcript in German: an ASCII wordmark, a one-line explanation of
+The page is a terminal transcript in German: the `hermes` wordmark, a one-line explanation of
 the name, a `whois hermes` block of host facts, a `whois -a hermes` block naming the person
 responsible for mail dispatch, and a `cat /etc/motd` line.
 
 | Element     | Text                                             |
 |-------------|--------------------------------------------------|
-| Wordmark    | `hermes` (ASCII art) + `mail server · pklnx.space`|
+| Header      | logo mark (links to `pklnx.space`) · `mail server · pklnx.space` |
+| Wordmark    | `hermes` in the space-bar bracket (inline SVG)   |
 | `host`      | `hermes.pklnx.space`                             |
 | `dienst`    | `e-mail (smtp · imap)`                           |
-| `herkunft`  | `Ἑρμῆς — bote, wegbereiter, übermittler`          |
+| `herkunft`  | `griech. hermes — bote, wegbereiter, übermittler` |
 | `betreiber` | `pklnx.space`                                    |
 | `name`      | responsible person for mail dispatch              |
 | `anschrift` | postal address                                    |
 | `e-mail`    | contact address (`mailto:` link)                  |
 | `telefon`   | contact phone (`tel:` link)                       |
-| Footer      | `hermes.pklnx.space` · link back to `pklnx.space`|
+| Footer      | `hermes.pklnx.space` · arrow icon + link back to `pklnx.space` |
 
 The `whois -a hermes` block exists so that the PTR domain of the mail server's outbound IP
 resolves to a page that shows the responsible person's direct contact details on load — not
@@ -67,26 +69,27 @@ both together.
 
 ## Design
 
-Dark, reduced, terminal-flavoured: near-black `#08080a` ground, bone-white `#d9d4c8` text,
-a single signal colour `#ff4b33` for the prompt, the ASCII wordmark and link hovers. The
-prompt line carries a blinking block cursor (`@keyframes hermes-blink`); the fact blocks
-sit behind a hairline rule in `#1c1c20`. The cursor is the only motion on the page and
-stops under `prefers-reduced-motion: reduce`, staying visible where it is.
+The page follows the **pklnx.space design system** (dark theme), the same as
+[`pklnx/root`](https://github.com/pklnx/root): a hairline-ruled header with the logo mark
+(space-bar bracket + star), the wordmark set large, and the fact blocks under `$` prompts
+against a vertical rule.
 
-Set in **JetBrains Mono** (see [Credits](#credits)), self-hosted, one variable file for
-every weight. Code ligatures are switched off page-wide — this is a terminal transcript,
-not source code, and the ASCII wordmark has no business being re-shaped by them.
-
-Layout and colours live in inline `style` attributes rather than in classes — the page is
-one screen and one file, and the CSP allows inline styles for exactly that reason. Keep new
-values consistent with the ones already in use instead of introducing a second palette.
-
-The `<style>` block holds the handful of rules an attribute cannot express: `@font-face`,
-`@keyframes`, `a:hover`, `min-width: 0` on the three grid rows, and two media queries — one
-for reduced motion, one that drops the header's letter-spaced caps below 40 rem, where they
-no longer fit beside the wordmark. The classes `.cursor` and `.eyebrow` exist only so those
-queries have something to select. Layout regressions here are horizontal ones: check that
-the page does not scroll sideways at 320 px.
+- **Colours** are the design-system tokens, declared once as `:root` variables in
+  `index.html`: `--ground #08080a`, `--line #2c2c31`, `--ink #f3f1ec`, `--ink-muted
+  #a3a09a`, `--star #ff5a36`, `--star-ink #ff7a5c`. `--star` is the only accent and
+  appears in exactly two places, the star in the mark and the `$` sigils; links use
+  `--star-ink`. Every dimmed text keeps at least 7.7:1 against the ground.
+- **Type:** Space Mono 400/700 for everything terminal-like (labels, values, prompts,
+  header, footer), IBM Plex Sans 400 for the two prose lines (intro and motd).
+- **Wordmark:** `hermes` in Space Mono Bold inside the space-bar bracket of the
+  pklnx.space logo, as inline SVG paths, so it renders the same with or without the
+  webfont. It sits on the same grid as the pklnx.space wordmark (57.2-unit advance,
+  first glyph origin at 34, bracket 8.5 units thick) and is scaled so its letters stand
+  at the same height. Generate new paths from Space Mono rather than drawing them by hand.
+- **Nothing animates.** The blinking caret of the earlier version is gone.
+- Below 40 rem the header's letter-spaced eyebrow is dropped; below 30 rem the `whois`
+  labels stack above their values. `header, main, footer { min-width: 0 }` and the
+  `minmax(0, 1fr)` value column keep the page from scrolling sideways at 320 px.
 
 ## Deployment
 
@@ -95,13 +98,14 @@ Two options. Both serve the same file.
 ### Without a container
 
 Drop `index.html` **and the `fonts/` directory** into the document root of any web server —
-the `@font-face` url is root-absolute (`/fonts/…`), so the font has to sit at
+the `@font-face` urls are root-absolute (`/fonts/…`), so the fonts have to sit at
 `<docroot>/fonts/`. That is all — but then none of the hardening, headers or the CSP below
-come with it, and the font is served without the one-year cache.
+come with it.
 
 ### As a container
 
-The image is an `nginx:alpine` with `index.html`, `fonts/*.woff2` and `docker/nginx.conf`
+The image is an `nginx:alpine` with `index.html`, `fonts/` (the `woff2` files and their
+`OFL-*.txt` licences) and `docker/nginx.conf`
 baked in — no build step, no runtime, no dependencies. It serves **HTTP on port 8080 only**; TLS is
 handled by the reverse proxy in front. The base image is intentionally unpinned, so every
 rebuild picks up the current nginx (mainline) with its security patches. A new minor can
@@ -170,17 +174,19 @@ A few decisions that need explaining in operation:
   ever causes trouble, it is the first line to drop.
 - **Health check against `/healthz`.** A separate endpoint keeps health traffic out of the
   page's access log, and the probe stays independent of the caching rule on `/`.
+- **Fonts under `/fonts/`, cached for 30 days.** That location serves only `.woff2` and
+  `.txt` (the OFL licences, which the licence requires to travel with the fonts) with
+  explicit MIME types; `fonts/README.md` stays out of the image.
 - **No client IPs in the access log.** `docker/nginx.conf` uses a `privacy` log format that
   records everything except `$remote_addr`. The error log is the exception: nginx always
   stamps the client IP into it and offers no way to format that away.
 
-Before publishing, CI checks that `index.html` pulls in nothing external and that the font
-covers every character on the page, then builds the image, starts it with the same
-`--read-only --tmpfs /tmp` hardening the compose file uses, and checks that it becomes
-healthy, runs as `nginx` rather than root, serves `index.html` byte-for-byte, serves the
-`woff2` byte-for-byte as `font/woff2` with a one-year cache, answers `/healthz` with a 200,
-sends the CSP, and answers everything else — `/fonts/` and `/fonts/OFL.txt` included — with
-a 404. Pull requests run the same build and smoke test but push nothing, so a broken image
+Before publishing, CI checks that `index.html` pulls in nothing external, then builds the
+image, starts it with the same `--read-only --tmpfs /tmp` hardening the compose file uses,
+and checks that it becomes healthy, runs as `nginx` rather than root, serves `index.html`
+byte-for-byte, serves every `woff2` the page references byte-for-byte as `font/woff2`
+plus both `OFL-*.txt` licences, answers `/healthz` with a 200, sends the CSP, carries no
+Google Fonts host, and answers everything else with a 404. Pull requests run the same build and smoke test but push nothing, so a broken image
 never reaches the registry.
 
 ### Reverse proxy examples
@@ -224,11 +230,11 @@ consent-free operation, you did not misconfigure the CSP.
 
 ## Credits
 
-The page is set in **[JetBrains Mono](https://www.jetbrains.com/lp/mono/)** by
-**JetBrains**, licensed under the SIL Open Font License 1.1 — free to use, commercially and
-otherwise, with no attribution required. It is credited here anyway, because the typeface
-is what makes the terminal look on this page work. Full provenance, license text and the
-regeneration procedure: [`fonts/README.md`](fonts/README.md).
+The page is set in **[Space Mono](https://github.com/googlefonts/spacemono)**, © 2016 The
+Space Mono Project Authors, and **[IBM Plex Sans](https://github.com/IBM/plex)**, © 2017
+IBM Corp. with Reserved Font Name "Plex", both under the SIL Open Font License 1.1. Full
+provenance, licence texts and the regeneration procedure:
+[`fonts/README.md`](fonts/README.md).
 
 ## License
 
@@ -236,6 +242,7 @@ The site itself is proprietary — see [`LICENSE`](LICENSE). Copyright (c) 2026 
 Klein, all rights reserved. Nothing in this repository may be used, copied, or
 redistributed without prior written permission.
 
-**Exception:** the font files under `fonts/` are not covered by that. JetBrains Mono is
-third-party work under the SIL Open Font License 1.1 ([`fonts/OFL.txt`](fonts/OFL.txt)) and
-stays under its own terms.
+**Exception:** the font files under `fonts/` are not covered by that. Space Mono and IBM
+Plex Sans are third-party work under the SIL Open Font License 1.1
+([`fonts/OFL-SpaceMono.txt`](fonts/OFL-SpaceMono.txt),
+[`fonts/OFL-IBMPlex.txt`](fonts/OFL-IBMPlex.txt)) and stay under their own terms.
