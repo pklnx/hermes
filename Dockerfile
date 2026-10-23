@@ -26,7 +26,7 @@ COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY index.html /usr/share/nginx/html/index.html
 
 # The webfonts the page sets its type in, served from this origin instead of
-# Google Fonts so no visitor request ever leaves the site. The OFL-*.txt files go along
+# Google Fonts so no visitor request ever leaves the site. OFL-IBMPlex.txt goes along
 # with them because the licence requires it to accompany each font — it has to be
 # in what the server hands out, not just in the repository.
 COPY fonts/ /usr/share/nginx/html/fonts/
