@@ -189,9 +189,9 @@ jobs:
             grep -qi '^content-type: font/woff2' font-headers.txt
           done
 
-          # The OFL requires the licence to travel with each font: one licence
-          # file per family, all of them served.
-          for licence in OFL-SpaceMono.txt OFL-IBMPlex.txt; do
+          # The OFL requires the licence to travel with each font. IBM Plex Mono
+          # and IBM Plex Sans share one licence text, so one file covers both.
+          for licence in OFL-IBMPlex.txt; do
             curl -fsS "http://127.0.0.1:8080/fonts/$licence" -o served.txt
             diff -q served.txt "fonts/$licence"
           done

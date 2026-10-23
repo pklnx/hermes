@@ -18,10 +18,9 @@ The software and content are provided "as is", without warranty of any kind.
 
 EXCEPTION — THIRD-PARTY FONTS
 
-The font files under fonts/ are not part of the above. Space Mono
-(Copyright 2016 The Space Mono Project Authors) and IBM Plex Sans (Copyright
-2017 IBM Corp., Reserved Font Name "Plex") are licensed under the SIL Open
-Font License, Version 1.1 — see fonts/OFL-SpaceMono.txt and
-fonts/OFL-IBMPlex.txt for the full texts and fonts/README.md for provenance.
+The font files under fonts/ are not part of the above. IBM Plex Mono and
+IBM Plex Sans (Copyright 2017 IBM Corp., Reserved Font Name "Plex") are
+licensed under the SIL Open Font License, Version 1.1 — see
+fonts/OFL-IBMPlex.txt for the full text and fonts/README.md for provenance.
 They remain under their own terms; nothing in this file restricts the rights
 that license grants.

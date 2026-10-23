@@ -16,7 +16,7 @@ change to this file:
 - CSS stays inline (in `<style>` and in the `style="…"` attributes the layout is built
   from); no `@import`, no `<link rel="stylesheet">`
 - no JavaScript, no `<script>` tags
-- **the typefaces are self-hosted, not fetched.** Space Mono and IBM Plex Sans live in
+- **the typefaces are self-hosted, not fetched.** IBM Plex Mono and IBM Plex Sans live in
   `fonts/` and are served from this origin; the CSP allows `font-src 'self'` and nothing
   else. A `fonts.googleapis.com` link would hand every visitor's IP address to Google —
   precisely what this rule exists to prevent. See [`fonts/README.md`](fonts/README.md)
@@ -46,11 +46,11 @@ responsible for mail dispatch, and a `cat /etc/motd` line.
 
 | Element     | Text                                             |
 |-------------|--------------------------------------------------|
-| Header      | logo mark (links to `pklnx.space`) · `mail server · pklnx.space` |
+| Header      | logo mark (links to `pklnx.space`) · `Mail-Server · pklnx.space` |
 | Wordmark    | `hermes` in the space-bar bracket (inline SVG)   |
 | `host`      | `hermes.pklnx.space`                             |
-| `dienst`    | `e-mail (smtp · imap)`                           |
-| `herkunft`  | `griech. hermes — bote, wegbereiter, übermittler` |
+| `dienst`    | `E-Mail (SMTP · IMAP)`                           |
+| `herkunft`  | `Griech. Hermes — Bote, Wegbereiter, Übermittler` |
 | `betreiber` | `pklnx.space`                                    |
 | `name`      | responsible person for mail dispatch              |
 | `anschrift` | postal address                                    |
@@ -63,33 +63,45 @@ resolves to a page that shows the responsible person's direct contact details on
 just a link elsewhere. Large mail providers' postmaster teams check for this before lifting a
 reputation block on a new sender IP.
 
-The page copy is German (`<html lang="de">`); the repository's docs, comments and commit
-messages are English. `<meta name="description">` repeats the one-line description — change
+The page copy is German (`<html lang="de">`) with normal German capitalisation, as the
+design system asks; only the `whois` field labels and host names stay lower-case, as
+command output. The repository's docs, comments and commit messages are English. `<meta name="description">` repeats the one-line description — change
 both together.
 
 ## Design
 
-The page follows the **pklnx.space design system** (dark theme), the same as
+The page follows the **[pklnx design system](https://github.com/pklnx/design-system)**
+(IBM Carbon v11, G100 dark theme, Purple as the one accent), the same as
 [`pklnx/root`](https://github.com/pklnx/root): a hairline-ruled header with the logo mark
 (space-bar bracket + star), the wordmark set large, and the fact blocks under `$` prompts
-against a vertical rule.
+against a vertical rule. It takes the look only (tokens, type, spacing, logo, prompt
+style): no Carbon CSS, no components, no script, and none of the design system's business
+voice.
 
-- **Colours** are the design-system tokens, declared once as `:root` variables in
-  `index.html`: `--ground #08080a`, `--line #2c2c31`, `--ink #f3f1ec`, `--ink-muted
-  #a3a09a`, `--star #ff5a36`, `--star-ink #ff7a5c`. `--star` is the only accent and
-  appears in exactly two places, the star in the mark and the `$` sigils; links use
-  `--star-ink`. Every dimmed text keeps at least 7.7:1 against the ground.
-- **Type:** Space Mono 400/700 for everything terminal-like (labels, values, prompts,
-  header, footer), IBM Plex Sans 400 for the two prose lines (intro and motd).
-- **Wordmark:** `hermes` in Space Mono Bold inside the space-bar bracket of the
+- **Colours and spacing** are Carbon tokens under their Carbon names and G100 values,
+  declared once as `:root` variables in `index.html`: `--background #161616`,
+  `--border-subtle-00 #393939`, `--text-primary #f4f4f4`, `--text-secondary #c6c6c6`,
+  `--link-primary #be95ff`, `--link-primary-hover #d4bbff`, `--focus #ffffff`, the brand's
+  `--star #a56eff`, plus `--spacing-*` and the `--font-*` stacks. `--star` is the only
+  accent and appears in exactly two places, the star in the mark and the `$` sigils; links
+  use `--link-primary`. Every dimmed text is `--text-secondary`, 10.6:1 against the
+  background.
+- **Type:** Carbon's productive scale. IBM Plex Mono for command output (`whois` labels and
+  values in `code-02`, footer in `code-01`) and the prompts (the design system's `prompt`
+  style, Plex Mono SemiBold 28 px, 20 px below 40 rem); IBM Plex Sans for language (eyebrow
+  `label-01`, intro and motd `body-02`).
+- **Wordmark:** `hermes` in IBM Plex Mono Bold inside the space-bar bracket of the
   pklnx.space logo, as inline SVG paths, so it renders the same with or without the
-  webfont. It sits on the same grid as the pklnx.space wordmark (57.2-unit advance,
-  first glyph origin at 34, bracket 8.5 units thick) and is scaled so its letters stand
-  at the same height. Generate new paths from Space Mono rather than drawing them by hand.
-- **Nothing animates.** The blinking caret of the earlier version is gone.
-- Below 40 rem the header's letter-spaced eyebrow is dropped; below 30 rem the `whois`
-  labels stack above their values. `header, main, footer { min-width: 0 }` and the
-  `minmax(0, 1fr)` value column keep the page from scrolling sideways at 320 px.
+  webfont. It is built exactly like the design system's wordmark (`scripts/build_logo.py`
+  there): 60-unit advance, bracket 8.5 units thick and 34 units outside the glyph bounds,
+  bracket depth taken from the pklnx wordmark so both stand at the same height, viewBox
+  `-27.5 -72 414.9 112.5`. Its CSS clamp is root's scaled by 414.9/715.4. Generate new paths
+  from IBM Plex Mono rather than drawing them by hand.
+- Square corners, no shadows, Carbon focus (2 px white inside on the mark, 1 px on text
+  links), Carbon icons filled in `currentColor`. **Nothing animates.**
+- Below 40 rem the header's eyebrow is dropped; below 30 rem the `whois` labels stack above
+  their values. `header, main, footer { min-width: 0 }` and the `minmax(0, 1fr)` value
+  column keep the page from scrolling sideways at 320 px.
 
 ## Deployment
 
@@ -105,7 +117,7 @@ come with it.
 ### As a container
 
 The image is an `nginx:alpine` with `index.html`, `fonts/` (the `woff2` files and their
-`OFL-*.txt` licences) and `docker/nginx.conf`
+`OFL-IBMPlex.txt` licence) and `docker/nginx.conf`
 baked in — no build step, no runtime, no dependencies. It serves **HTTP on port 8080 only**; TLS is
 handled by the reverse proxy in front. The base image is intentionally unpinned, so every
 rebuild picks up the current nginx (mainline) with its security patches. A new minor can
@@ -185,7 +197,7 @@ Before publishing, CI checks that `index.html` pulls in nothing external, then b
 image, starts it with the same `--read-only --tmpfs /tmp` hardening the compose file uses,
 and checks that it becomes healthy, runs as `nginx` rather than root, serves `index.html`
 byte-for-byte, serves every `woff2` the page references byte-for-byte as `font/woff2`
-plus both `OFL-*.txt` licences, answers `/healthz` with a 200, sends the CSP, carries no
+plus the `OFL-IBMPlex.txt` licence, answers `/healthz` with a 200, sends the CSP, carries no
 Google Fonts host, and answers everything else with a 404. Pull requests run the same build and smoke test but push nothing, so a broken image
 never reaches the registry.
 
@@ -230,9 +242,8 @@ consent-free operation, you did not misconfigure the CSP.
 
 ## Credits
 
-The page is set in **[Space Mono](https://github.com/googlefonts/spacemono)**, © 2016 The
-Space Mono Project Authors, and **[IBM Plex Sans](https://github.com/IBM/plex)**, © 2017
-IBM Corp. with Reserved Font Name "Plex", both under the SIL Open Font License 1.1. Full
+The page is set in **[IBM Plex Mono and IBM Plex Sans](https://github.com/IBM/plex)**,
+© 2017 IBM Corp. with Reserved Font Name "Plex", under the SIL Open Font License 1.1. Full
 provenance, licence texts and the regeneration procedure:
 [`fonts/README.md`](fonts/README.md).
 
@@ -242,7 +253,6 @@ The site itself is proprietary — see [`LICENSE`](LICENSE). Copyright (c) 2026 
 Klein, all rights reserved. Nothing in this repository may be used, copied, or
 redistributed without prior written permission.
 
-**Exception:** the font files under `fonts/` are not covered by that. Space Mono and IBM
-Plex Sans are third-party work under the SIL Open Font License 1.1
-([`fonts/OFL-SpaceMono.txt`](fonts/OFL-SpaceMono.txt),
-[`fonts/OFL-IBMPlex.txt`](fonts/OFL-IBMPlex.txt)) and stay under their own terms.
+**Exception:** the font files under `fonts/` are not covered by that. IBM Plex Mono and
+IBM Plex Sans are third-party work under the SIL Open Font License 1.1
+([`fonts/OFL-IBMPlex.txt`](fonts/OFL-IBMPlex.txt)) and stay under their own terms.

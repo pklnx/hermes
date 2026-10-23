@@ -30,8 +30,8 @@ else** — do not add mail configuration, DNS records or account management here
   analytics, no external images, no `<script>`. That is what lets the page run
   without a consent banner. Concretely:
   - CSS stays inline in `<style>` — no `@import`, no `<link rel="stylesheet">`
-  - two typefaces, Space Mono and IBM Plex Sans, **self-hosted out of
-    `fonts/`** (see "Typeface"), each with a system stack behind it as
+  - two typefaces, IBM Plex Mono and IBM Plex Sans, **self-hosted out of
+    `fonts/`** (see "Typeface"), each with Carbon's system stack behind it as
     fallback. **Never a `fonts.googleapis.com` link** — it hands the visitor's
     IP to Google, which is precisely what this rule exists to prevent, and CI
     fails if one appears (the design system's README suggests loading from
@@ -54,8 +54,8 @@ else** — do not add mail configuration, DNS records or account management here
 
 ```
 index.html               The entire site (markup + inline CSS)
-fonts/*.woff2            Self-hosted Space Mono 400/700 + IBM Plex Sans 400
-fonts/OFL-*.txt          One licence per family — SIL OFL 1.1, third-party, served with the fonts
+fonts/*.woff2            Self-hosted IBM Plex Mono 400/600 + IBM Plex Sans 400
+fonts/OFL-IBMPlex.txt    The licence for both — SIL OFL 1.1, third-party, served with the fonts
 fonts/README.md          Provenance, credit, how the files were produced
 Dockerfile               Container image: nginx + the page + fonts/ (no build step)
 .dockerignore            Allow-list — only index.html, fonts/ (minus its README) and docker/ get in
@@ -72,26 +72,47 @@ LICENSE                  Proprietary — with a carve-out for the fonts
 over from there; only names, the host port and the cron minute differ. Keep it
 that way — a fix to one usually belongs in both.
 
-Design tokens live in the `:root` CSS variables in `index.html` and come from
-the pklnx.space design system, dark theme (`--ground #08080a`, `--line #2c2c31`,
-`--ink #f3f1ec`, `--ink-muted #a3a09a`, `--star #ff5a36`, `--star-ink #ff7a5c`,
-plus `--mono` and `--sans`). Reuse those variables; don't hardcode colours, and
-take any further token (`--surface`, `--line-soft`) from root rather than
-inventing one. `--star` is the only accent and appears in exactly two places,
-the star in the mark and the `$` sigils; links use `--star-ink`. `--ink-muted`
-(7.7:1) is the only dimmed token and carries the 12 px text; the design system's
-fainter `ink-faint` is deliberately left out.
+**The brand is the pklnx design system** (`pklnx/design-system`): IBM Carbon v11,
+G100 (dark) theme, Purple as the one accent, IBM Plex throughout. The page takes
+its *look* from there (tokens, type scale, spacing, logo, the prompt style) and
+nothing else: no Carbon CSS, no components, no JS. The design system's voice for
+business copy (first person, „Leistungen", „Sie" towards clients) does not apply
+to a private name plate (see "Content & legal rules").
+
+Design tokens live in the `:root` CSS variables in `index.html`, **under their
+Carbon names and G100 values** — the same set `pklnx/root` uses, minus its row
+hover: `--background #161616`, `--border-subtle-00 #393939` (every rule),
+`--text-primary #f4f4f4`, `--text-secondary #c6c6c6`, `--link-primary #be95ff`,
+`--link-primary-hover #d4bbff`, `--focus #ffffff`, the brand token
+`--star #a56eff`, Carbon's `--spacing-*` steps and `--font-mono`/`--font-sans`.
+Reuse those variables; don't hardcode colours, and take any further token from
+root or the design system's `project/tokens.css` (same name, same value) rather
+than inventing one. `--star` is the only accent and appears in exactly two
+places, the star in the mark and the `$` sigils; links use `--link-primary`.
+`--text-secondary` (10.6:1) is the only dimmed token and carries the 12 px
+text; Carbon's fainter `text-helper` is deliberately left out.
+
+Type follows Carbon's productive scale, set by hand (each rule names its style
+in a comment): `whois` labels and values `code-02`, footer `code-01`, eyebrow
+`label-01`, intro and motd `body-02`. The prompts are the design system's
+`prompt` style (Plex Mono SemiBold 28 px), its 20 px step below 40 rem, where
+`$ whois -a hermes` would otherwise fill the 320 px line. Square corners, no
+shadows; focus is Carbon's: 2 px `--focus` inside on the mark, 1 px on text
+links. Icons are Carbon icons (32 grid, filled, `currentColor`) at 16 px.
 
 **The logo is inline SVG, not text.** The header mark (bracket + star) is the
-pklnx.space mark, copied from root, and links back to `pklnx.space`. The
-wordmark is `hermes` in Space Mono Bold inside the space-bar bracket, generated
-from the font on the same grid as the pklnx.space wordmark: 57.2-unit advance,
-first glyph origin at x = 34, bracket `M0 -6 … L8.5 -6 Z` 8.5 units thick and
-38 units past the last advance, viewBox `0 -70 415.2 110.5`. The CSS clamp is
-root's scaled by 415.2/692 so the letters stand at the same height. Fills come
-only from the `.ink` and `.star` classes. Do not retype the wordmark as live
-text or redraw the paths by hand — regenerate them from Space Mono with
-fontTools. The favicon is the mark on a `--ground` tile as a `data:` URI.
+design system's `pklnx-mark-dark.svg` and links back to `pklnx.space`. The
+wordmark is `hermes` in IBM Plex Mono Bold inside the space-bar bracket,
+generated exactly like the design system's wordmark (`scripts/build_logo.py`
+there: 100-unit font size, so a 60-unit advance; bracket 8.5 units thick, 34
+units outside the glyph bounds, tips at y = −6). `hermes` has no descender, so
+the bracket takes the pklnx wordmark's depth (inner edge y = 32, outer 40.5) and
+both marks stand at the same height. viewBox `-27.5 -72 414.9 112.5`; the CSS
+clamp is root's scaled by 414.9/715.4. Fills come only from the `.ink` and
+`.star` classes. Do not retype the wordmark as live text or redraw the paths by
+hand — regenerate them from `@ibm/plex-mono` 2.5.0 (`fonts/complete/woff2/
+IBMPlexMono-Bold.woff2`, the file the design system builds from) with fontTools.
+The favicon is the design system's `pklnx-favicon.svg` as a `data:` URI.
 
 Two auto-minimum traps are defused, and both bite again if the rule is removed:
 grid items default to `min-width: auto` (hence `header, main, footer
@@ -100,30 +121,31 @@ minimum — hence `minmax(0, 1fr)` plus `overflow-wrap: anywhere` on the `whois`
 blocks, whose unbreakable `hermes.pklnx.space` widens the page otherwise. Below
 40 rem the eyebrow is hidden; below 30 rem the `whois` labels stack above their
 values. **Nothing on the page animates** — the blinking caret is gone with the
-JetBrains Mono version, which is reachable through the git history.
+JetBrains Mono version; it and the Space Mono version in orange are reachable
+through the git history.
 
 ## Typeface
 
-The page is set in **Space Mono** (400 for labels, values, eyebrow and footer;
-700 for the `$` prompts) and **IBM Plex Sans** (400 for the two prose lines:
-intro and motd), both self-hosted. Full detail in `fonts/README.md`; what
-matters here:
+The page is set in **IBM Plex Mono** (400 for `whois` labels and values and the
+footer; 600 for the `$` prompts) and **IBM Plex Sans** (400 for the eyebrow and
+the two prose lines: intro and motd), both self-hosted. Full detail in
+`fonts/README.md`; what matters here:
 
-- Space Mono is subset to Latin, ~15 KB per weight. **IBM Plex Sans is not
-  subset by us:** its Reserved Font Name "Plex" means a modified file could not
-  keep the name, so the page ships IBM's own `IBMPlexSans-Regular-Latin1.woff2`,
-  unmodified.
-- **No Greek.** Neither file carries it, which is why the `herkunft` row reads
-  `griech. hermes` instead of the original `Ἑρμῆς`. The same goes for anything
-  else outside Latin-1 plus common punctuation: check a copy edit against the
-  fonts' cmaps rather than letting it fall back to the system face. Arrows are
-  inline SVG icons (24 grid, 2 px square stroke), not glyphs.
+- **IBM Plex is not subset by us:** its Reserved Font Name "Plex" means a
+  modified file could not keep the name, so the page ships IBM's own `-Latin1`
+  split files, unmodified (~18 KB per Mono weight, ~21 KB for Sans).
+- **No Greek.** None of the files carries it, which is why the `herkunft` row
+  reads `Griech. Hermes` instead of the original `Ἑρμῆς`. The same goes for
+  anything else outside Latin-1 plus common punctuation: check a copy edit
+  against the fonts' cmaps rather than letting it fall back to the system face.
+  Arrows are Carbon icons as inline SVG, not glyphs.
 - File names carry no version; `/fonts/` is cached for 30 days. A font update
   therefore takes up to a month to reach a returning visitor — harmless.
 - Credit is given in the `@font-face` comments, `README.md` and
-  `fonts/README.md`. `fonts/OFL-SpaceMono.txt` and `fonts/OFL-IBMPlex.txt` ship
-  into the image and are served under `/fonts/`, because the OFL requires the
-  licence to travel with each font — don't drop them to save a few kilobytes.
+  `fonts/README.md`. Both families ship the same licence text, so one file,
+  `fonts/OFL-IBMPlex.txt`, goes into the image and is served under `/fonts/`,
+  because the OFL requires the licence to travel with each font — don't drop it
+  to save a few kilobytes.
 
 ## Content
 
@@ -131,18 +153,18 @@ The page is a terminal transcript:
 
 | Element     | Text                                              |
 |-------------|---------------------------------------------------|
-| Header      | logo mark (links to `pklnx.space`) · eyebrow `mail server · pklnx.space` |
+| Header      | logo mark (links to `pklnx.space`) · eyebrow `Mail-Server · pklnx.space` |
 | Wordmark    | `hermes` in the space-bar bracket (inline SVG)    |
 | Intro       | one line on the name: the messenger of the gods    |
 | `host`      | `hermes.pklnx.space`                              |
-| `dienst`    | `e-mail (smtp · imap)`                            |
-| `herkunft`  | `griech. hermes — bote, wegbereiter, übermittler`  |
+| `dienst`    | `E-Mail (SMTP · IMAP)`                            |
+| `herkunft`  | `Griech. Hermes — Bote, Wegbereiter, Übermittler`  |
 | `betreiber` | `pklnx.space`                                     |
 | `name`      | `Patrick Klein` — person responsible for mail dispatch |
 | `anschrift` | postal address (deliverable, per Telekom FAQ 4.1)  |
 | `e-mail`    | `postmaster@pklnx.space`, as `mailto:` link         |
 | `telefon`   | contact phone number, as `tel:` link                |
-| motd        | „was ihm anvertraut wird, kommt an." — access for existing accounts only |
+| motd        | „Was ihm anvertraut wird, kommt an." — access for existing accounts only |
 | Footer      | `hermes.pklnx.space` · arrow icon + link back to `pklnx.space` |
 
 The `whois -a hermes` block (`name`/`anschrift`/`e-mail`/`telefon`) exists so the PTR domain
@@ -161,8 +183,10 @@ being asked.
 
 ## Language conventions
 
-- **Page copy is German** (`<html lang="de">`), lower-case throughout, and uses
-  German typographic quotes („…").
+- **Page copy is German** (`<html lang="de">`) with normal German
+  capitalisation, as the design system asks, and uses German typographic quotes
+  („…"). Only the `whois` field labels (`host`, `dienst`, …) and host names stay
+  lower-case: they are command output, not prose.
 - **Code, comments, commit messages, branch names and repository docs are
   English** — same as `pklnx/root`.
 
@@ -258,7 +282,7 @@ curl -I http://127.0.0.1:8081/
   separate endpoint keeps health traffic out of the page's access log and out of
   the five-minute caching rule.
 - **There is exactly one page.** `location = /` serves `index.html`, `^~ /fonts/`
-  serves the webfonts and their `OFL-*.txt` licences, everything else returns
+  serves the webfonts and their `OFL-IBMPlex.txt` licence, everything else returns
   404 — which is also why no explicit dotfile deny is needed. The fonts block
   spells its MIME types out in a `types` block, so a base image without `woff2`
   in `mime.types` cannot turn the font into an octet-stream; note that a
@@ -327,8 +351,8 @@ Before publishing, CI checks `index.html` for external subresources, then
 builds the image, starts it with the same `--read-only --tmpfs /tmp` hardening
 the compose file uses, and asserts that it becomes healthy, runs as `nginx`
 rather than root, serves `index.html` byte-for-byte, delivers every
-`/fonts/*.woff2` the page references byte-for-byte as `font/woff2` plus both
-`OFL-*.txt` licences, answers `/healthz` with 200, sends the CSP (including
+`/fonts/*.woff2` the page references byte-for-byte as `font/woff2` plus the
+`OFL-IBMPlex.txt` licence, answers `/healthz` with 200, sends the CSP (including
 `font-src 'self'`) and `X-Content-Type-Options`, carries no Google Fonts host,
 and answers everything else with 404.
 
@@ -376,10 +400,10 @@ It is **not** open source — do not add an open-source license or public-domain
 dedication, and do not reuse the code/content elsewhere without the owner's
 written permission.
 
-**One carve-out:** the font files under `fonts/` (Space Mono, IBM Plex Sans) are
-third-party work under the SIL Open Font License 1.1 and stay under their own
-terms — `LICENSE` says so explicitly. Keep `fonts/OFL-SpaceMono.txt` and
-`fonts/OFL-IBMPlex.txt` in the repository and in the image; that is what
+**One carve-out:** the font files under `fonts/` (IBM Plex Mono, IBM Plex Sans)
+are third-party work under the SIL Open Font License 1.1 and stay under their own
+terms — `LICENSE` says so explicitly. Keep `fonts/OFL-IBMPlex.txt` in the
+repository and in the image; that is what
 satisfies the OFL's requirement that the licence travel with each font.
 
 ## Open TODOs
